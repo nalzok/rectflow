@@ -1,3 +1,6 @@
+from typing import Tuple
+
+import numpy as np
 import jax.random as jr
 import jax.numpy as jnp
 from jaxtyping import Array
@@ -15,38 +18,50 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     x0, x1 = sample(key_sample, n_samples)
 
     key, key_perm = jr.split(key)
-    tz0 = jr.permutation(key_perm, x1)
+    x1 = jr.permutation(key_perm, x1)
 
-    for i in range(2):
+    for reflow in range(1):
         key, key_model, key_train = jr.split(key, 3)
         model = Velocity(key_model)
-        model = train(key_train, model, x0, tz0, learning_rate, n_epochs)
-        tz0 = trace(model, x0, tz0, f"figures/reflow{i+1}.png")
+        model = train(key_train, model, x0, x1, learning_rate, n_epochs)
+        tz0, traces = transport(model, x0, 1e-3)
+
+        fig = plt.figure(figsize=(12, 6))
+
+        plt.scatter(x0[:, 0], x0[:, 1], s=1, color="red")
+        plt.scatter(x1[:, 0], x1[:, 1], s=1, color="blue")
+        for i in range(x0.shape[0]):
+            plt.scatter(tz0[i, 0], tz0[i, 1], s=1, color="yellow")
+            plt.plot(traces[i, :, 0], traces[i, :, 1], color="gray", alpha=0.1)
+
+        plt.xlim((-10, 20))
+        plt.ylim((-10, 20))
+        plt.savefig(f"figures/reflow{reflow+1}.png", bbox_inches="tight", dpi=300)
+        plt.close(fig)
+
+        x1 = tz0
 
 
-def trace(model: Velocity, z0: Array, z1: Array, output: str) -> Array:
-    fig, ax = plt.subplots(figsize=(12, 6))
-    plt.scatter(z0[:, 0], z0[:, 1], s=1, color="red")
-    plt.scatter(z1[:, 0], z1[:, 1], s=1, color="blue")
-
-    tz0 = jnp.empty_like(z0)
+def transport(model: Velocity, z0: Array, dt0: float) -> Tuple[Array, Array]:
+    tz0 = np.empty_like(z0)
+    traces = np.empty((z0.shape[0], int(1 / dt0), z0.shape[1]))
     for i in range(n_samples):
-        solution = path(model, z0[i, :])
-        track = solution.ys
-        plt.plot(track[:, 0], track[:, 1], color="gray", alpha=0.2)
-        tz0 = tz0.at[i, :].set(track[-1])
+        solution = path(model, z0[i, :], dt0)
+        traces[i, :, :] = solution.ys
+        tz0[i, :] = solution.ys[-1]
 
-    plt.xlim((-10, 20))
-    plt.ylim((-10, 20))
+    tz0 = jnp.array(tz0)
+    traces = jnp.array(traces)
 
-    plt.savefig(output, bbox_inches="tight", dpi=300)
-    plt.close(fig)
-
-    return tz0
+    return tz0, traces
 
 
 if __name__ == "__main__":
-    n_samples = 200
+    from jax.config import config
+
+    config.update("jax_enable_x64", True)
+
+    n_samples = 500
     learning_rate = 1e-4
-    n_epochs = 10000
+    n_epochs = 1000
     main(n_samples, learning_rate, n_epochs)

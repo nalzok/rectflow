@@ -46,10 +46,11 @@ def train(
     for i in range(n_epochs):
         key_step = jr.fold_in(key, i)
 
-        # key_step, key_perm = jr.split(key_step)
-        # tz0 = jr.permutation(key_perm, tz0)
+        key_step, key_perm = jr.split(key_step)
+        tz0 = jr.permutation(key_perm, tz0)
 
         loss, model, opt_state = train_step(key_step, model, opt_state)
-        print(f"Iteration #{i+1}, {loss = }")
+        if i % 100 == 0:
+            print(f"Iteration #{i+1}, {loss = }")
 
     return model

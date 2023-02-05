@@ -19,7 +19,7 @@ def sample(key: PyTree, n_samples: int) -> Tuple[Array, Array]:
     x1 = jnp.concatenate(
         (
             jr.normal(key10, (n_samples // 2, dimension)) + jnp.array((10, 0)),
-            jr.normal(key11, (n_samples // 2, dimension)) + jnp.array((10, 10)),
+            jr.normal(key11, (n_samples // 2, dimension)) + jnp.array((15, 15)),
         )
     )
     return x0, x1
