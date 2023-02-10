@@ -20,26 +20,32 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     key, key_perm = jr.split(key)
     x1 = jr.permutation(key_perm, x1)
 
+    colors = plt.get_cmap("tab10").colors
     for reflow in range(1):
-        key, key_model, key_train = jr.split(key, 3)
-        model = Velocity(key_model)
-        model = train(key_train, model, x0, x1, learning_rate, n_epochs)
-        tz0, traces = transport(model, x0, 1e-3)
+        num_stages = 2
+        key, *key_stages = jr.split(key, 1 + 2 * num_stages)
 
         fig = plt.figure(figsize=(12, 6))
+        plt.scatter(x0[:, 0], x0[:, 1], s=1, color=colors[0])
+        plt.scatter(x1[:, 0], x1[:, 1], s=1, color=colors[num_stages+1])
 
-        plt.scatter(x0[:, 0], x0[:, 1], s=1, color="red")
-        plt.scatter(x1[:, 0], x1[:, 1], s=1, color="blue")
-        for i in range(x0.shape[0]):
-            plt.scatter(tz0[i, 0], tz0[i, 1], s=1, color="yellow")
-            plt.plot(traces[i, :, 0], traces[i, :, 1], color="gray", alpha=0.1)
+        outset = x0
+        for stage in range(num_stages):
+            key_model, key_train = key_stages[2*stage : 2*stage+2]
+            model = Velocity(key_model)
+            model = train(key_train, model, outset, x1, learning_rate, n_epochs)
+
+            next_outset, traces = transport(model, outset, 1e-3)
+            plt.scatter(next_outset[:, 0], next_outset[:, 1], s=1, color=colors[stage+1])
+            for i in range(x0.shape[0]):
+                plt.plot(traces[i, :, 0], traces[i, :, 1], color=colors[stage+1], alpha=0.05)
+
+            outset = next_outset
 
         plt.xlim((-10, 20))
         plt.ylim((-10, 20))
         plt.savefig(f"figures/reflow{reflow+1}.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
-
-        x1 = tz0
 
 
 def transport(model: Velocity, z0: Array, dt0: float) -> Tuple[Array, Array]:
