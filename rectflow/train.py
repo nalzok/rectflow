@@ -13,19 +13,20 @@ from rectflow.velocity import Velocity
 def train(
     key: PyTree,
     model: Velocity,
-    z0: Array,
     tz0: Array,
     learning_rate: float,
     n_epochs: int,
 ) -> Velocity:
-    n_samples, _ = z0.shape
+    n_samples, _ = tz0.shape
 
     @eqx.filter_jit
     def train_step(
         key: PyTree, model: Velocity, opt_state: optax.OptState
     ) -> Tuple[Array, Velocity, optax.OptState]:
+        key_noise, key_t = jr.split(key)
+        z0 = jr.normal(key_noise, tz0.shape)
         v = tz0 - z0
-        t = jr.uniform(key, (n_samples, 1))
+        t = jr.uniform(key_t, (n_samples, 1))
         z_t = z0 + t * v
 
         @eqx.filter_value_and_grad

@@ -13,7 +13,11 @@ class Velocity(eqx.Module):
         self.layers = [
             eqx.nn.Linear(3, 256, key=key1),
             jax.nn.relu,
-            eqx.nn.Linear(256, 256, key=key2),
+            eqx.nn.Linear(256, 512, key=key2),
+            jax.nn.relu,
+            eqx.nn.Linear(512, 512, key=key2),
+            jax.nn.relu,
+            eqx.nn.Linear(512, 256, key=key2),
             jax.nn.relu,
             eqx.nn.Linear(256, 2, key=key3),
         ]
