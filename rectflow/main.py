@@ -15,7 +15,7 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     x1 = jr.permutation(key_perm, x1)
 
     colors = plt.get_cmap("tab10").colors
-    for reflow in range(1):
+    for reflow in range(2):
         key, key_model, key_train, key_noise = jr.split(key, 4)
 
         model = Velocity(key_model)
@@ -24,13 +24,14 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
         print("forward")
         z0 = jr.normal(key_noise, x1.shape)
         ts, traces = flow(model, z0, 1e-3, True)
+        next_x1 = jnp.squeeze(traces[:, -1, :])
 
         fig = plt.figure(figsize=(12, 6))
         plt.scatter(z0[:, 0], z0[:, 1], s=1, color=colors[0])
         plt.scatter(x1[:, 0], x1[:, 1], s=1, color=colors[1])
         for i in range(n_samples):
             plt.scatter(traces[i, -1, 0], traces[i, -1, 1], s=1, color=colors[2])
-            rgb = (1 - ts[i, :, jnp.newaxis]) * jnp.array(colors[0]) + ts[i, :, jnp.newaxis] * jnp.array(colors[2])
+            rgb = (1 - ts[:, jnp.newaxis]) * jnp.array(colors[0]) + ts[:, jnp.newaxis] * jnp.array(colors[2])
             plt.scatter(traces[i, :, 0], traces[i, :, 1], s=0.1, c=rgb, alpha=0.01)
         plt.xlim((-10, 10))
         plt.ylim((-10, 10))
@@ -46,13 +47,15 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
         plt.scatter(x1[:, 0], x1[:, 1], s=1, color=colors[1])
         for i in range(n_samples):
             plt.scatter(traces[i, -1, 0], traces[i, -1, 1], s=1, color=colors[2])
-            rgb = (1 - ts[i, :, jnp.newaxis]) * jnp.array(colors[1]) + ts[i, :, jnp.newaxis] * jnp.array(colors[2])
+            rgb = (1 - ts[:, jnp.newaxis]) * jnp.array(colors[0]) + ts[:, jnp.newaxis] * jnp.array(colors[2])
             plt.scatter(traces[i, :, 0], traces[i, :, 1], s=0.1, c=rgb, alpha=0.01)
         plt.xlim((-10, 10))
         plt.ylim((-10, 10))
         plt.axis("equal")
         plt.savefig(f"figures/reflow{reflow+1}-backward.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
+
+        x1 = next_x1
 
 
 if __name__ == "__main__":
