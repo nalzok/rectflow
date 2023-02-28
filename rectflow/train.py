@@ -14,6 +14,8 @@ def train(
     key: PyTree,
     model: Velocity,
     tz0: Array,
+    tz0_mean: Array,
+    tz0_cov: Array,
     learning_rate: float,
     n_epochs: int,
 ) -> Velocity:
@@ -24,7 +26,7 @@ def train(
         key: PyTree, model: Velocity, opt_state: optax.OptState
     ) -> Tuple[Array, Velocity, optax.OptState]:
         key_noise, key_t = jr.split(key)
-        z0 = jr.normal(key_noise, tz0.shape)
+        z0 = jr.multivariate_normal(key_noise, tz0_mean, tz0_cov, tz0.shape[:-1])
         v = tz0 - z0
         t = jr.uniform(key_t, (n_samples, 1))
         z_t = z0 + t * v

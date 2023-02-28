@@ -8,10 +8,10 @@ import equinox as eqx
 class Velocity(eqx.Module):
     layers: Sequence
 
-    def __init__(self, key):
+    def __init__(self, key, dim):
         key1, key2, key3 = jax.random.split(key, 3)
         self.layers = [
-            eqx.nn.Linear(3, 256, key=key1),
+            eqx.nn.Linear(dim + 1, 256, key=key1),
             jax.nn.relu,
             eqx.nn.Linear(256, 512, key=key2),
             jax.nn.relu,
@@ -19,7 +19,7 @@ class Velocity(eqx.Module):
             jax.nn.relu,
             eqx.nn.Linear(512, 256, key=key2),
             jax.nn.relu,
-            eqx.nn.Linear(256, 2, key=key3),
+            eqx.nn.Linear(256, dim, key=key3),
         ]
 
     def __call__(self, z, t):
