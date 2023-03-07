@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Callable
 
 import jax
 import jax.numpy as jnp
@@ -13,29 +13,36 @@ from rectflow.velocity import Velocity
 def train(
     key: PyTree,
     model: Velocity,
-    tz0: Array,
-    tz0_mean: Array,
-    tz0_cov: Array,
+    cond: Array,
+    z0_gen: Callable,
+    z0_mean: Array,
+    z0_factor: Array,
+    z1: Array,
+    f: Callable[[Array], Array],
     learning_rate: float,
     n_epochs: int,
 ) -> Velocity:
-    n_samples, _ = tz0.shape
+    n_samples, _ = z1.shape
 
     @eqx.filter_jit
     def train_step(
         key: PyTree, model: Velocity, opt_state: optax.OptState
     ) -> Tuple[Array, Velocity, optax.OptState]:
         key_noise, key_t = jr.split(key)
-        z0 = jr.multivariate_normal(key_noise, tz0_mean, tz0_cov, tz0.shape[:-1])
-        v = tz0 - z0
+        samples = z0_gen(key=key_noise, shape=z1.shape)
+        z0 = z0_mean + samples @ z0_factor.T
+        v_truth = z1 - z0
         t = jr.uniform(key_t, (n_samples, 1))
-        z_t = z0 + t * v
+        z_t = z0 + t * v_truth
 
         @eqx.filter_value_and_grad
         def loss_fn(model):
-            fitted = jax.vmap(model)(z_t, t)
-            residual = v - fitted
-            return jnp.mean(residual**2)
+            def bregman(x, y):
+                return f(x) - f(y) - jnp.dot(jax.grad(f)(y), x - y)
+
+            v_fitted = jax.vmap(model)(cond, z_t, t)
+            losses = jax.vmap(bregman)(v_truth, v_fitted)
+            return jnp.mean(losses)
 
         loss, grads = loss_fn(model)
         updates, opt_state = optim.update(grads, opt_state, model)
@@ -50,10 +57,10 @@ def train(
         key_step = jr.fold_in(key, i)
 
         key_step, key_perm = jr.split(key_step)
-        tz0 = jr.permutation(key_perm, tz0)
+        z1 = jr.permutation(key_perm, z1)
 
         loss, model, opt_state = train_step(key_step, model, opt_state)
-        if i % 100 == 0:
+        if i % (n_epochs // 10) == 0:
             print(f"Iteration #{i+1}, {loss = }")
 
     return model

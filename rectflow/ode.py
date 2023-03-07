@@ -8,10 +8,10 @@ from rectflow.velocity import Velocity
 
 
 @eqx.filter_jit
-def solve(model: Velocity, z0: Array, dt0: float, forward: bool) -> Solution:
+def solve(model: Velocity, cond: Array, z0: Array, dt0: float, forward: bool) -> Solution:
     def f(t, z, args):
         del args
-        v = model(z, jnp.expand_dims(t, 0))
+        v = model(cond, z, jnp.expand_dims(t, 0))
         return v if forward else -v
 
     term = ODETerm(f)
@@ -22,11 +22,11 @@ def solve(model: Velocity, z0: Array, dt0: float, forward: bool) -> Solution:
     return solution
 
 
-def flow(model: Velocity, z0: Array, dt0: float, forward: bool) -> Array:
-    def path(z0_i):
-        soln = solve(model, z0_i, dt0, forward)
+def flow(model: Velocity, cond: Array, z0: Array, dt0: float, forward: bool) -> Array:
+    def path(cond_i, z0_i):
+        soln = solve(model, cond_i, z0_i, dt0, forward)
         return soln.ys[0, :]
 
-    traces = jax.vmap(path)(z0)
+    traces = jax.vmap(path)(cond, z0)
 
     return traces
