@@ -14,7 +14,8 @@ from rectflow.ode import flow
 def main(n_samples: int, learning_rate: float, n_epochs: int):
     key = jr.PRNGKey(42)
     key, key_x1, key_perm = jr.split(key, 3)
-    dim = 64
+    cond_dim = 1
+    z_dim = 64
     n_components = 8
 
     # Huber
@@ -28,7 +29,8 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     # alpha = 1
     # f = lambda x: 1/(1+alpha) * jnp.sum(x**(1+alpha))
 
-    components, x1 = gaussian_mixture(key_x1, dim, n_components, n_samples)
+    cond = jnp.zeros((n_samples, cond_dim))
+    components, x1 = gaussian_mixture(key_x1, z_dim, n_components, n_samples)
     x1 = jr.permutation(key_perm, x1)
 
 
@@ -44,18 +46,18 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     for reflow in range(1):
         key, key_model, key_train, key_noise = jr.split(key, 4)
 
-        model = Velocity(key_model, dim)
+        model = Velocity(key_model, cond_dim, z_dim)
         z0_gen = jr.normal
-        model = train(key_train, model, z0_gen, z0_mean, z0_factor, x1, f, learning_rate, n_epochs)
+        model = train(key_train, model, cond, z0_gen, z0_mean, z0_factor, x1, f, learning_rate, n_epochs)
 
         # pi_0 -> pi_1
         x0 = jr.multivariate_normal(key_noise, x1_mean, x1_cov, x1.shape[:-1])
-        next_x1 = flow(model, x0, 1e-3, True)
-        llk = gaussian_mixture_llk(next_x1, components, dim)
+        next_x1 = flow(model, cond, x0, 1e-3, True)
+        llk = gaussian_mixture_llk(next_x1, components, z_dim)
         print(f"forward llk: {llk}")
 
         # pi_1 -> pi_0
-        x0_rev = flow(model, x1, 1e-3, False)
+        x0_rev = flow(model, cond, x1, 1e-3, False)
         llk = gaussian_llk(x0_rev, x1_mean, x1_cov)
         print(f"backward llk: {llk}")
 
@@ -82,9 +84,8 @@ def gaussian_mixture_llk(x: Array, components: Array, dim: int) -> Array:
 
 
 if __name__ == "__main__":
-    from jax.config import config
-
-    config.update("jax_enable_x64", True)
+    # from jax.config import config
+    # config.update("jax_enable_x64", True)
 
     n_samples = 500
     learning_rate = 1e-4
