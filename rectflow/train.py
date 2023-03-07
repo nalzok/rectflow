@@ -29,6 +29,7 @@ def train(
         key: PyTree, model: Velocity, opt_state: optax.OptState
     ) -> Tuple[Array, Velocity, optax.OptState]:
         key_noise, key_t = jr.split(key)
+
         samples = z0_gen(key=key_noise, shape=z1.shape)
         z0 = z0_mean + samples @ z0_factor.T
         v_truth = z1 - z0
@@ -55,9 +56,6 @@ def train(
 
     for i in range(n_epochs):
         key_step = jr.fold_in(key, i)
-
-        key_step, key_perm = jr.split(key_step)
-        z1 = jr.permutation(key_perm, z1)
 
         loss, model, opt_state = train_step(key_step, model, opt_state)
         if i % (n_epochs // 10) == 0:
