@@ -26,11 +26,17 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     z1, *info = ftrue(key_z, cond)
     z1_mean = jnp.mean(z1, axis=0)
     z1_cov = jnp.cov(z1, rowvar=False).reshape((z_dim, z_dim))
+
+    key, key_cond, key_z1 = jr.split(key, 3)
+    noise_cond = jr.uniform(key_cond, cond.shape, minval=-1, maxval=1)
+    noise_z1 = jnp.abs(noise_cond)/10 * jr.normal(key_z1, z1.shape)
+    cond = cond + noise_cond
+    z1 = z1 + noise_z1
     
     fig = plt.figure()
     plt.plot(cond, z1, '.', markersize=1)
-    plt.plot(cond, info[0], '--k')
-    plt.savefig("figures/uq.png", bbox_inches="tight", dpi=300)
+    # plt.plot(cond, info[0], '--k')
+    plt.savefig("figures/uq2.png", bbox_inches="tight", dpi=300)
     plt.close(fig)
 
     for reflow in range(1):
@@ -47,12 +53,12 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     
         fig = plt.figure()
         plt.plot(cond0, z0, ".", markersize=1)
-        plt.savefig(f"figures/uq-forward-{reflow}-before.png", bbox_inches="tight", dpi=300)
+        plt.savefig(f"figures/uq2-forward-{reflow}-before.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
     
         fig = plt.figure()
         plt.plot(cond0, next_z1, ".", markersize=1)
-        plt.savefig(f"figures/uq-forward-{reflow}-after.png", bbox_inches="tight", dpi=300)
+        plt.savefig(f"figures/uq2-forward-{reflow}-after.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
 
         # pi_1 -> pi_0
@@ -60,12 +66,12 @@ def main(n_samples: int, learning_rate: float, n_epochs: int):
     
         fig = plt.figure()
         plt.plot(cond, z1, ".", markersize=1)
-        plt.savefig(f"figures/uq-backward-{reflow}-before.png", bbox_inches="tight", dpi=300)
+        plt.savefig(f"figures/uq2-backward-{reflow}-before.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
     
         fig = plt.figure()
         plt.plot(cond, z0_rev, ".", markersize=1)
-        plt.savefig(f"figures/uq-backward-{reflow}-after.png", bbox_inches="tight", dpi=300)
+        plt.savefig(f"figures/uq2-backward-{reflow}-after.png", bbox_inches="tight", dpi=300)
         plt.close(fig)
 
         z1 = next_z1
